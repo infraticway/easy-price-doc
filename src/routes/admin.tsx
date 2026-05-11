@@ -348,6 +348,21 @@ function AdminBoard({ password, onLogout }: { password: string; onLogout: () => 
     }
   };
 
+  const handleClearAll = async () => {
+    if (!confirm("Remover TODOS os pinos de TODAS as páginas? Esta ação não pode ser desfeita.")) return;
+    if (!confirm("Tem certeza absoluta? Você vai perder todos os preços cadastrados.")) return;
+    try {
+      for (const page of PAGES) {
+        await adminDeletePage({ data: { password, page: page.num } });
+      }
+      pins.forEach((p) => removePinLocal(p.id));
+      toast.success("Todos os pinos foram removidos");
+    } catch (err) {
+      toast.error("Erro", { description: String(err) });
+    }
+  };
+
+
   const handleExportPDF = async () => {
     setExporting(true);
     toast.info("Gerando PDF...");
