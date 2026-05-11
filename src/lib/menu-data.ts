@@ -151,22 +151,22 @@ export const ITEMS: MenuItem[] = [
   { id: "havannitas", label: "Havannitas (9g)", section: "Chocolates", page: 6, x: 95, y: 49 },
 ];
 
-// Páginas 1 e 7 são páginas únicas (capa/contracapa) com proporção retrato.
-// Páginas 2 a 6 são spreads duplos com proporção paisagem.
-const SPREAD_ASPECT = 3308 / 2339;
-const SINGLE_ASPECT = 1654 / 2339;
+// Cardápio A4 — todas as páginas em retrato (DASA 2026).
+const A4_ASPECT = 595.276 / 841.89;
 
 export const PAGES = [
-  { num: 1, src: "/menu/page-1.jpg", aspect: SINGLE_ASPECT },
-  { num: 2, src: "/menu/page-2.jpg", aspect: SPREAD_ASPECT },
-  { num: 3, src: "/menu/page-3.jpg", aspect: SPREAD_ASPECT },
-  { num: 4, src: "/menu/page-4.jpg", aspect: SPREAD_ASPECT },
-  { num: 5, src: "/menu/page-5.jpg", aspect: SPREAD_ASPECT },
-  { num: 6, src: "/menu/page-6.jpg", aspect: SPREAD_ASPECT },
-  { num: 7, src: "/menu/page-7.jpg", aspect: SINGLE_ASPECT },
+  { num: 1, src: "/menu/page-1.jpg", aspect: A4_ASPECT },
+  { num: 2, src: "/menu/page-2.jpg", aspect: A4_ASPECT },
+  { num: 3, src: "/menu/page-3.jpg", aspect: A4_ASPECT },
+  { num: 4, src: "/menu/page-4.jpg", aspect: A4_ASPECT },
+  { num: 5, src: "/menu/page-5.jpg", aspect: A4_ASPECT },
+  { num: 6, src: "/menu/page-6.jpg", aspect: A4_ASPECT },
+  { num: 7, src: "/menu/page-7.jpg", aspect: A4_ASPECT },
+  { num: 8, src: "/menu/page-8.jpg", aspect: A4_ASPECT },
+  { num: 9, src: "/menu/page-9.jpg", aspect: A4_ASPECT },
 ];
 
-export const PAGE_ASPECT = SPREAD_ASPECT; // padrão (spread)
+export const PAGE_ASPECT = A4_ASPECT;
 
 export function formatPrice(v: number | null | undefined): string {
   if (v == null || isNaN(v)) return "";
