@@ -448,6 +448,12 @@ function AdminBoard({ password, onLogout }: { password: string; onLogout: () => 
                 >
                   <Trash2 className="h-3.5 w-3.5" /> Limpar página
                 </button>
+                <button
+                  onClick={handleClearAll}
+                  className="flex items-center gap-1 rounded-md border border-red-500 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Limpar TUDO
+                </button>
               </div>
             </div>
 
