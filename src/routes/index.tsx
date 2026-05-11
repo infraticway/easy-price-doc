@@ -14,12 +14,14 @@ type Lang = "pt" | "en" | "es";
 
 const SECTION_LABEL_FALLBACK: Record<number, string> = {
   1: "Capa",
-  2: "Bebidas Quentes",
-  3: "Bebidas Geladas",
-  4: "Salgados & Sanduíches",
-  5: "Doces & Tortas",
-  6: "Alfajores & Para Levar",
-  7: "Sobre",
+  2: "Saladas",
+  3: "Cafés & Bebidas Quentes",
+  4: "Clássicos Argentinos & Salgados",
+  5: "Bebidas Geladas",
+  6: "Vannaccinos",
+  7: "Doces & Tortas",
+  8: "Alfajores & Para Levar",
+  9: "Informações",
 };
 
 const PIN_SCALE_KEY = "menu_pin_scale";
