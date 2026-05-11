@@ -348,6 +348,21 @@ function AdminBoard({ password, onLogout }: { password: string; onLogout: () => 
     }
   };
 
+  const handleClearAll = async () => {
+    if (!confirm("Remover TODOS os pinos de TODAS as páginas? Esta ação não pode ser desfeita.")) return;
+    if (!confirm("Tem certeza absoluta? Você vai perder todos os preços cadastrados.")) return;
+    try {
+      for (const page of PAGES) {
+        await adminDeletePage({ data: { password, page: page.num } });
+      }
+      pins.forEach((p) => removePinLocal(p.id));
+      toast.success("Todos os pinos foram removidos");
+    } catch (err) {
+      toast.error("Erro", { description: String(err) });
+    }
+  };
+
+
   const handleExportPDF = async () => {
     setExporting(true);
     toast.info("Gerando PDF...");
@@ -432,6 +447,12 @@ function AdminBoard({ password, onLogout }: { password: string; onLogout: () => 
                   className="flex items-center gap-1 rounded-md border border-red-300 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
                 >
                   <Trash2 className="h-3.5 w-3.5" /> Limpar página
+                </button>
+                <button
+                  onClick={handleClearAll}
+                  className="flex items-center gap-1 rounded-md border border-red-500 bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-700 hover:bg-red-100"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Limpar TUDO
                 </button>
               </div>
             </div>
