@@ -597,11 +597,11 @@ function AdminBoard({ password, onLogout }: { password: string; onLogout: () => 
                   <Sparkles className="h-3.5 w-3.5" /> Detectar com IA
                 </button>
                 <button
-                  onClick={handleExportListPDF}
-                  disabled={exportingList}
+                  onClick={handleExportPDF}
+                  disabled={exporting}
                   className="flex items-center gap-1 rounded-md bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
                 >
-                  <FileDown className="h-3.5 w-3.5" /> {exportingList ? "Gerando..." : "Exportar lista"}
+                  <FileDown className="h-3.5 w-3.5" /> {exporting ? "Gerando..." : "Exportar PDF"}
                 </button>
                 <button
                   onClick={handleClearPage}
