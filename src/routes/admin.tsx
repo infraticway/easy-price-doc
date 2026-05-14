@@ -153,6 +153,145 @@ function downloadBlob(blob: Blob, filename: string) {
   URL.revokeObjectURL(url);
 }
 
+function makeItemListPdf(pins: Pin[]): Blob {
+  const pricedPins = pins
+    .filter((p) => p.price != null)
+    .sort((a, b) => a.page - b.page || (a.name ?? "").localeCompare(b.name ?? ""));
+
+  const PW = 595.28, PH = 841.89;
+  const ML = 48, MR = 48, MT = 48, MB = 48;
+  const ROW_H = 22;
+  const COL_PAG_X = ML;
+  const COL_NAME_X = ML + 48;
+  const COL_PRICE_X = PW - MR - 72;
+
+  const TABLE_Y1 = PH - MT - 78;
+  const TABLE_YN = PH - MT - 38;
+  const TABLE_YEND = MB + 30;
+  const ROWS_P1 = Math.floor((TABLE_Y1 - TABLE_YEND) / ROW_H);
+  const ROWS_PN = Math.floor((TABLE_YN - TABLE_YEND) / ROW_H);
+
+  const groups: typeof pricedPins[] = [];
+  if (pricedPins.length === 0) {
+    groups.push([]);
+  } else {
+    groups.push(pricedPins.slice(0, ROWS_P1));
+    for (let i = ROWS_P1; i < pricedPins.length; i += ROWS_PN) {
+      groups.push(pricedPins.slice(i, i + ROWS_PN));
+    }
+  }
+
+  const totalPages = groups.length;
+  const dateStr = new Date().toLocaleDateString("pt-BR");
+
+  // Encode text to PDF hex string using WinAnsi (Windows-1252)
+  const WIN1252: Record<number, number> = {
+    0x20AC: 0x80, 0x201A: 0x82, 0x0192: 0x83, 0x201E: 0x84,
+    0x2026: 0x85, 0x2020: 0x86, 0x2021: 0x87, 0x02C6: 0x88,
+    0x2030: 0x89, 0x0160: 0x8A, 0x2039: 0x8B, 0x0152: 0x8C,
+    0x017D: 0x8E, 0x2018: 0x91, 0x2019: 0x92, 0x201C: 0x93,
+    0x201D: 0x94, 0x2022: 0x95, 0x2013: 0x96, 0x2014: 0x97,
+    0x02DC: 0x98, 0x2122: 0x99, 0x0161: 0x9A, 0x203A: 0x9B,
+    0x0153: 0x9C, 0x017E: 0x9E, 0x0178: 0x9F,
+  };
+  const pdfHex = (text: string) => {
+    let h = "<";
+    for (const ch of text) {
+      const c = ch.charCodeAt(0);
+      h += (c < 256 ? c : WIN1252[c] ?? 0x3F).toString(16).padStart(2, "0");
+    }
+    return h + ">";
+  };
+
+  const chunks: string[] = [];
+  let off = 0;
+  const xrefs: number[] = [0];
+
+  const write = (s: string) => { chunks.push(s); off += s.length; };
+  const obj = (id: number) => { xrefs[id] = off; write(`${id} 0 obj\n`); };
+
+  const n = groups.length;
+  const pageBase = 5, contBase = 5 + n;
+  const pageIds = Array.from({ length: n }, (_, i) => pageBase + i);
+  const contIds = Array.from({ length: n }, (_, i) => contBase + i);
+
+  write("%PDF-1.4\n");
+  obj(1); write("<< /Type /Catalog /Pages 2 0 R >>\nendobj\n");
+  obj(2); write(`<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${n} >>\nendobj\n`);
+  obj(3); write("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>\nendobj\n");
+  obj(4); write("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>\nendobj\n");
+
+  groups.forEach((items, gi) => {
+    const isFirst = gi === 0;
+    const tableTopY = isFirst ? TABLE_Y1 : TABLE_YN;
+    const lines: string[] = [];
+
+    const T = (x: number, y: number, size: number, f: "F1" | "F2", s: string, color = "0 0 0") =>
+      `BT\n/${f} ${size} Tf\n${color} rg\n1 0 0 1 ${x.toFixed(1)} ${y.toFixed(1)} Tm\n${pdfHex(s)} Tj\nET\n`;
+    const R = (x: number, y: number, w: number, h: number, r: number, g: number, b: number) =>
+      `${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} rg\n${x.toFixed(1)} ${y.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)} re\nf\n`;
+    const L = (x1: number, y1: number, x2: number, y2: number, r: number, g: number, b: number) =>
+      `0.5 w\n${r.toFixed(3)} ${g.toFixed(3)} ${b.toFixed(3)} RG\n${x1.toFixed(1)} ${y1.toFixed(1)} m\n${x2.toFixed(1)} ${y2.toFixed(1)} l\nS\n`;
+
+    if (isFirst) {
+      lines.push(R(ML - 4, PH - MT - 36, PW - ML - MR + 8, 34, 0.608, 0.247, 0.094));
+      lines.push(T(ML, PH - MT - 21, 18, "F2", "Lista de Precos — Havanna", "0.98 0.98 0.98"));
+      lines.push(T(ML, PH - MT - 52, 9.5, "F1",
+        `Emitido em ${dateStr}   |   ${pricedPins.length} iten${pricedPins.length !== 1 ? "s" : ""} precificado${pricedPins.length !== 1 ? "s" : ""}`));
+      lines.push(L(ML - 4, PH - MT - 60, PW - MR + 4, PH - MT - 60, 0.7, 0.7, 0.7));
+    } else {
+      lines.push(T(ML, PH - MT - 18, 9, "F1",
+        `Lista de Precços — continuacão (${gi + 1}/${totalPages})`));
+      lines.push(L(ML - 4, PH - MT - 26, PW - MR + 4, PH - MT - 26, 0.7, 0.7, 0.7));
+    }
+
+    // Table header
+    lines.push(R(ML - 4, tableTopY - 4, PW - ML - MR + 8, ROW_H, 0.15, 0.25, 0.45));
+    lines.push(T(COL_PAG_X, tableTopY + 4, 8.5, "F2", "PAG.", "0.95 0.95 0.95"));
+    lines.push(T(COL_NAME_X, tableTopY + 4, 8.5, "F2", "ITEM / DESCRICAO", "0.95 0.95 0.95"));
+    lines.push(T(COL_PRICE_X, tableTopY + 4, 8.5, "F2", "PRECO", "0.95 0.95 0.95"));
+
+    // Data rows
+    items.forEach((pin, ri) => {
+      const rowY = tableTopY - (ri + 1) * ROW_H;
+      if (ri % 2 === 0) lines.push(R(ML - 4, rowY - 4, PW - ML - MR + 8, ROW_H, 0.96, 0.96, 0.97));
+      lines.push(T(COL_PAG_X, rowY + 4, 9.5, "F1", String(pin.page)));
+      const truncName = (pin.name ?? "(sem nome)").slice(0, 60);
+      lines.push(T(COL_NAME_X, rowY + 4, 9.5, "F1", truncName));
+      lines.push(T(COL_PRICE_X, rowY + 4, 9.5, "F2", formatPrice(pin.price!)));
+    });
+
+    if (pricedPins.length === 0) {
+      lines.push(T(ML + 80, tableTopY - 30, 11, "F1", "Nenhum item precificado."));
+    }
+
+    // Footer on last page
+    if (gi === n - 1 && items.length > 0) {
+      const footerY = tableTopY - items.length * ROW_H - 6;
+      lines.push(L(ML - 4, footerY, PW - MR + 4, footerY, 0.7, 0.7, 0.7));
+      lines.push(T(COL_NAME_X, footerY - 16, 9.5, "F1",
+        `Total: ${pricedPins.length} iten${pricedPins.length !== 1 ? "s" : ""} precificado${pricedPins.length !== 1 ? "s" : ""}`));
+    }
+
+    // Page number
+    lines.push(T(PW / 2 - 25, MB - 18, 8, "F1", `Pagina ${gi + 1} de ${totalPages}`));
+
+    const content = lines.join("");
+
+    obj(pageIds[gi]);
+    write(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PW} ${PH}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contIds[gi]} 0 R >>\nendobj\n`);
+    obj(contIds[gi]);
+    write(`<< /Length ${content.length} >>\nstream\n${content}endstream\nendobj\n`);
+  });
+
+  const xrefOff = off;
+  write(`xref\n0 ${xrefs.length}\n0000000000 65535 f \n`);
+  for (let i = 1; i < xrefs.length; i++) write(`${String(xrefs[i]).padStart(10, "0")} 00000 n \n`);
+  write(`trailer\n<< /Size ${xrefs.length} /Root 1 0 R >>\nstartxref\n${xrefOff}\n%%EOF`);
+
+  return new Blob(chunks, { type: "application/pdf" });
+}
+
 function Admin() {
   const [password, setPassword] = useState<string | null>(null);
 
@@ -237,6 +376,7 @@ function AdminBoard({ password, onLogout }: { password: string; onLogout: () => 
   const [search, setSearch] = useState("");
   const [translating, setTranslating] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [exportingList, setExportingList] = useState(false);
   const undoStack = useRef<UndoAction[]>([]);
 
   const filled = pins.filter((p) => p.price != null).length;
@@ -379,6 +519,20 @@ function AdminBoard({ password, onLogout }: { password: string; onLogout: () => 
     }
   };
 
+  const handleExportListPDF = () => {
+    setExportingList(true);
+    toast.info("Gerando lista de preços...");
+    try {
+      const pdf = makeItemListPdf(pins);
+      downloadBlob(pdf, `havanna-lista-precos-${new Date().toISOString().slice(0, 10)}.pdf`);
+      toast.success("Lista de preços baixada");
+    } catch (err) {
+      toast.error("Erro ao gerar lista", { description: String(err) });
+    } finally {
+      setExportingList(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-neutral-50">
       <header className="sticky top-0 z-30 border-b border-neutral-200 bg-neutral-900 text-white">
@@ -443,6 +597,13 @@ function AdminBoard({ password, onLogout }: { password: string; onLogout: () => 
                   <Sparkles className="h-3.5 w-3.5" /> Detectar com IA
                 </button>
                 <button
+                  onClick={handleExportPDF}
+                  disabled={exporting}
+                  className="flex items-center gap-1 rounded-md bg-emerald-700 px-2.5 py-1 text-xs font-semibold text-white hover:bg-emerald-800 disabled:opacity-50"
+                >
+                  <FileDown className="h-3.5 w-3.5" /> {exporting ? "Gerando..." : "Exportar PDF"}
+                </button>
+                <button
                   onClick={handleClearPage}
                   className="flex items-center gap-1 rounded-md border border-red-300 px-2.5 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
                 >
@@ -498,6 +659,8 @@ function AdminBoard({ password, onLogout }: { password: string; onLogout: () => 
             translating={translating}
             onExportPDF={handleExportPDF}
             exporting={exporting}
+            onExportListPDF={handleExportListPDF}
+            exportingList={exportingList}
           />
         )}
 
@@ -815,6 +978,8 @@ function ListView({
   translating,
   onExportPDF,
   exporting,
+  onExportListPDF,
+  exportingList,
 }: {
   password: string;
   pins: Pin[];
@@ -827,6 +992,8 @@ function ListView({
   translating: string | null;
   onExportPDF: () => void;
   exporting: boolean;
+  onExportListPDF: () => void;
+  exportingList: boolean;
 }) {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -858,11 +1025,18 @@ function ListView({
           <Languages className="h-3.5 w-3.5" /> {translating === "es" ? "Traduzindo..." : "Traduzir ES"}
         </button>
         <button
+          onClick={onExportListPDF}
+          disabled={exportingList}
+          className="flex items-center gap-1 rounded-md bg-emerald-700 px-2 py-1.5 text-xs font-medium text-white hover:bg-emerald-800 disabled:opacity-50"
+        >
+          <FileDown className="h-3.5 w-3.5" /> {exportingList ? "Gerando..." : "Lista de preços (PDF)"}
+        </button>
+        <button
           onClick={onExportPDF}
           disabled={exporting}
           className="flex items-center gap-1 rounded-md bg-neutral-900 px-2 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
         >
-          <FileDown className="h-3.5 w-3.5" /> {exporting ? "Gerando..." : "Exportar PDF"}
+          <FileDown className="h-3.5 w-3.5" /> {exporting ? "Gerando..." : "Exportar cardápio (PDF)"}
         </button>
       </div>
 
